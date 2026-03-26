@@ -1,0 +1,17 @@
+{
+  "name": "daily-standup-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for monitoring daily standup video chats",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "auth": "node scripts/auth.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "input": "^1.0.1",
+    "telegraf": "^4.16.3",
+    "telegram": "^2.26.22"
+  }
+}
