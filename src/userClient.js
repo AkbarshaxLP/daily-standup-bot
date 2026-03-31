@@ -5,7 +5,7 @@
  *   UpdateGroupCall             → звонок начался / завершился
  *   UpdateGroupCallParticipants → участники зашли / вышли / изменили микрофон
  *
- * При старте звонка автоматически загружает список участников группы.
+ * При старте автоматически определяет группу из диалогов аккаунта.
  */
 
 const { TelegramClient } = require('telegram');
@@ -34,20 +34,31 @@ function persistSession(sessionString) {
   fs.writeFileSync(SESSION_FILE, JSON.stringify({ session: sessionString }), 'utf8');
 }
 
-// MTProto использует сырой peer ID без знака и без префикса 100.
-// Bot API для супергрупп добавляет -100 (например -1001234567890 → 1234567890).
-function normalizeChatId(id) {
-  const s = String(id).replace('-', '');
-  return s.startsWith('100') && s.length >= 12 ? s.slice(3) : s;
-}
+// Сканирует диалоги и возвращает первую найденную группу/супергруппу
+async function detectGroup(client) {
+  const dialogs = await client.getDialogs({ limit: 100 });
 
-// Конвертирует MTProto peer ID в Bot API chat ID (-100xxx для каналов/супергрупп, -xxx для обычных групп)
-async function toBotApiChatId(client, peerId) {
-  try {
-    const entity = await client.getEntity(Number(peerId));
-    if (entity.className === 'Channel') return `-100${peerId}`;
-  } catch { /* если не получилось — обычная группа */ }
-  return `-${peerId}`;
+  const groups = dialogs.filter(d => {
+    const e = d.entity;
+    return e?.className === 'Chat' || (e?.className === 'Channel' && e?.megagroup);
+  });
+
+  if (groups.length === 0) {
+    throw new Error('Не найдено ни одной группы в диалогах аккаунта');
+  }
+
+  if (groups.length > 1) {
+    console.log('[UserClient] Найдено несколько групп:');
+    groups.forEach((g, i) => console.log(`  ${i + 1}. ${g.title} (ID: ${g.id})`));
+    console.log(`[UserClient] Используется первая: "${groups[0].title}"`);
+  }
+
+  const entity = groups[0].entity;
+  const rawId = String(entity.id).replace('-', '');
+  const botApiId = entity.className === 'Channel' ? `-100${rawId}` : `-${rawId}`;
+
+  console.log(`[UserClient] Группа: "${groups[0].title}" → Bot API ID: ${botApiId}`);
+  return { rawId, botApiId };
 }
 
 let _client = null;
@@ -62,17 +73,6 @@ async function startUserClient(onReportReady) {
   const apiId = parseInt(process.env.API_ID, 10);
   const apiHash = process.env.API_HASH;
 
-  // GROUP_CHAT_ID необязателен — если не задан, слушаем все группы
-  const filterChatId = process.env.GROUP_CHAT_ID
-    ? normalizeChatId(process.env.GROUP_CHAT_ID)
-    : null;
-
-  if (filterChatId) {
-    console.log(`[UserClient] Слежу за чатом: ${process.env.GROUP_CHAT_ID} (normalized: ${filterChatId})`);
-  } else {
-    console.log('[UserClient] GROUP_CHAT_ID не задан — слежу за всеми группами');
-  }
-
   _client = new TelegramClient(
     new StringSession(sessionString),
     apiId,
@@ -84,18 +84,20 @@ async function startUserClient(onReportReady) {
   console.log('[UserClient] MTProto клиент подключён');
   persistSession(_client.session.save());
 
+  const group = await detectGroup(_client);
+
   _client.addEventHandler(async (update) => {
     try {
-      await handleUpdate(update, filterChatId, onReportReady);
+      await handleUpdate(update, group, onReportReady);
     } catch (err) {
       console.error('[UserClient] Ошибка апдейта:', err.message);
     }
   }, new Raw({}));
 }
 
-async function fetchGroupMembers(rawChatId) {
+async function fetchGroupMembers(rawId) {
   try {
-    const participants = await _client.getParticipants(Number(rawChatId));
+    const participants = await _client.getParticipants(Number(rawId));
     const members = [];
     for (const p of participants) {
       if (p.bot) continue;
@@ -114,29 +116,25 @@ async function fetchGroupMembers(rawChatId) {
   }
 }
 
-async function handleUpdate(update, filterChatId, onReportReady) {
+async function handleUpdate(update, group, onReportReady) {
   // ─── Звонок начался / завершился ─────────────────────────────
   if (update.className === 'UpdateGroupCall') {
-    const rawChatId = update.chatId != null ? String(update.chatId) : null;
-    const normalizedChatId = rawChatId ? normalizeChatId(rawChatId) : null;
+    const rawChatId = update.chatId != null
+      ? String(update.chatId).replace('-', '')
+      : null;
 
-    console.log(`[UserClient] UpdateGroupCall chatId=${normalizedChatId}`);
-
-    if (filterChatId && normalizedChatId && normalizedChatId !== filterChatId) return;
+    if (rawChatId && rawChatId !== group.rawId) return;
 
     const call = update.call;
     if (!call) return;
 
     if (call.className === 'GroupCall' && !call.finished) {
-      const members = await fetchGroupMembers(rawChatId || filterChatId);
+      const members = await fetchGroupMembers(group.rawId);
       callTracker.onCallStart(members);
     } else if (call.className === 'GroupCallDiscarded' || call.finished) {
       const snapshot = callTracker.onCallEnd();
       if (snapshot) {
-        // Определяем Bot API chat ID для отправки отчёта
-        const envChatId = process.env.GROUP_CHAT_ID;
-        snapshot.botChatId = envChatId || (rawChatId ? await toBotApiChatId(_client, rawChatId) : null);
-
+        snapshot.botChatId = group.botApiId;
         saveSession(snapshot);
         if (onReportReady) await onReportReady(snapshot);
       }

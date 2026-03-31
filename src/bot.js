@@ -21,7 +21,6 @@ const ADMIN_IDS = process.env.ADMIN_IDS
 
 function createBot() {
   const bot = new Telegraf(process.env.BOT_TOKEN);
-  const groupChatId = process.env.GROUP_CHAT_ID;
 
   // ─── Middleware: все команды — только для админов ─────────────
   bot.use((ctx, next) => {
@@ -148,13 +147,8 @@ function createBot() {
   // ─── Отправка отчёта (вызывается из userClient) ──────────────
   async function sendReport(snapshot) {
     try {
-      const targetChatId = snapshot.botChatId || groupChatId;
-      if (!targetChatId) {
-        console.error('[Bot] Не задан GROUP_CHAT_ID и не удалось определить чат автоматически');
-        return;
-      }
       const text = generateReport(snapshot);
-      await bot.telegram.sendMessage(targetChatId, text, { parse_mode: 'MarkdownV2' });
+      await bot.telegram.sendMessage(snapshot.botChatId, text, { parse_mode: 'MarkdownV2' });
       console.log('[Bot] Отчёт отправлен');
     } catch (err) {
       console.error('[Bot] Ошибка отправки отчёта:', err.message);
