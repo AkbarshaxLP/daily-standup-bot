@@ -1,9 +1,11 @@
+const TIMEZONE = 'Asia/Tashkent';
+
 function formatTime(ts) {
   if (!ts) return '—';
   return new Date(ts).toLocaleTimeString('ru-RU', {
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: 'Europe/Moscow',
+    timeZone: TIMEZONE,
   });
 }
 
@@ -26,7 +28,7 @@ function generateReport(snapshot) {
   lines.push(`📋 *Итоги Daily Standup*`);
 
   const dateStr = new Date(callStartTime).toLocaleDateString('ru-RU', {
-    timeZone: 'Europe/Moscow',
+    timeZone: TIMEZONE,
     weekday: 'long',
     year: 'numeric',
     month: 'long',
