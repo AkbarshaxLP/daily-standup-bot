@@ -148,8 +148,13 @@ function createBot() {
   // ─── Отправка отчёта (вызывается из userClient) ──────────────
   async function sendReport(snapshot) {
     try {
+      const targetChatId = snapshot.botChatId || groupChatId;
+      if (!targetChatId) {
+        console.error('[Bot] Не задан GROUP_CHAT_ID и не удалось определить чат автоматически');
+        return;
+      }
       const text = generateReport(snapshot);
-      await bot.telegram.sendMessage(groupChatId, text, { parse_mode: 'MarkdownV2' });
+      await bot.telegram.sendMessage(targetChatId, text, { parse_mode: 'MarkdownV2' });
       console.log('[Bot] Отчёт отправлен');
     } catch (err) {
       console.error('[Bot] Ошибка отправки отчёта:', err.message);
