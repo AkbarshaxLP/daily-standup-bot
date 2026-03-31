@@ -19,6 +19,13 @@ const { saveSession, isIgnored } = require('./storage');
 
 const SESSION_FILE = path.join(__dirname, '..', 'data', 'session.json');
 
+// MTProto передаёт сырой peer ID без знака и без префикса 100.
+// Bot API для супергрупп добавляет -100 спереди (например -1001234567890 → 1234567890).
+function normalizeChatId(id) {
+  const s = String(id).replace('-', '');
+  return s.startsWith('100') && s.length >= 12 ? s.slice(3) : s;
+}
+
 function loadSession() {
   if (!fs.existsSync(SESSION_FILE)) return '';
   try {
@@ -45,7 +52,9 @@ async function startUserClient(onReportReady) {
 
   const apiId = parseInt(process.env.API_ID, 10);
   const apiHash = process.env.API_HASH;
-  const groupChatId = Math.abs(parseInt(process.env.GROUP_CHAT_ID, 10));
+  // Нормализуем ID: убираем знак и префикс 100 (Bot API супергрупп)
+  const groupChatId = normalizeChatId(process.env.GROUP_CHAT_ID);
+  console.log(`[UserClient] Слежу за чатом: ${process.env.GROUP_CHAT_ID} (normalized: ${groupChatId})`);
 
   client = new TelegramClient(
     new StringSession(sessionString),
@@ -94,7 +103,8 @@ async function fetchGroupMembers(groupChatId) {
 async function handleUpdate(update, groupChatId, onReportReady) {
   // ─── Звонок начался / завершился ─────────────────────────────
   if (update.className === 'UpdateGroupCall') {
-    const chatId = update.chatId ? Math.abs(Number(update.chatId)) : null;
+    const chatId = update.chatId != null ? normalizeChatId(update.chatId) : null;
+    console.log(`[UserClient] UpdateGroupCall chatId=${chatId} groupChatId=${groupChatId}`);
     if (chatId && chatId !== groupChatId) return;
 
     const call = update.call;
