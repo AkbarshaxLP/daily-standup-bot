@@ -1,5 +1,5 @@
 /**
- * Одноразовая авторизация MTProto user-client.
+ * Одноразовая авторизация MTProto user-client через QR-код.
  * Запуск: npm run auth
  */
 
@@ -7,7 +7,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 
 const { TelegramClient } = require('telegram');
 const { StringSession } = require('telegram/sessions');
-const input = require('input');
+const qrcode = require('qrcode-terminal');
 const fs = require('fs');
 const path = require('path');
 
@@ -26,12 +26,28 @@ async function auth() {
     connectionRetries: 3,
   });
 
-  await client.start({
-    phoneNumber: async () => input.text('Номер телефона (+79001234567): '),
-    password: async () => input.text('Пароль 2FA (если есть, иначе Enter): '),
-    phoneCode: async () => input.text('Код из Telegram: '),
-    onError: (err) => console.error('Ошибка:', err),
-  });
+  await client.connect();
+
+  console.log('Сканируй QR-код в Telegram: Настройки → Устройства → Привязать устройство\n');
+
+  await client.signInUserWithQrCode(
+    { apiId, apiHash },
+    {
+      onError: (err) => {
+        console.error('Ошибка:', err.message);
+        return true;
+      },
+      qrCode: async (code) => {
+        const url = `tg://login?token=${code.token.toString('base64url')}`;
+        qrcode.generate(url, { small: true });
+        console.log('\nОжидаем сканирования...\n');
+      },
+      password: async (hint) => {
+        const input = require('input');
+        return input.text(`Пароль 2FA${hint ? ` (подсказка: ${hint})` : ''}: `);
+      },
+    }
+  );
 
   const dir = path.dirname(SESSION_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -43,6 +59,6 @@ async function auth() {
 }
 
 auth().catch((err) => {
-  console.error('Ошибка:', err);
+  console.error('Ошибка:', err.message);
   process.exit(1);
 });

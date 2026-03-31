@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(npm remove:*)"
+      "Bash(npm remove:*)",
+      "Bash(git push:*)"
     ]
   }
 }
