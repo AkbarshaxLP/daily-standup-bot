@@ -10,6 +10,7 @@
 
 const { TelegramClient } = require('telegram');
 const { StringSession } = require('telegram/sessions');
+const { Raw } = require('telegram/events');
 const fs = require('fs');
 const path = require('path');
 
@@ -63,7 +64,7 @@ async function startUserClient(onReportReady) {
     } catch (err) {
       console.error('[UserClient] Ошибка апдейта:', err.message);
     }
-  });
+  }, new Raw());
 }
 
 // Загружает всех участников группы (исключая ботов и игнорируемых)
