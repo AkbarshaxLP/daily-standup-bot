@@ -1,0 +1,18 @@
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+
+  auth:
+    build: .
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    stdin_open: true
+    tty: true
+    command: node scripts/auth.js
+    profiles:
+      - auth
