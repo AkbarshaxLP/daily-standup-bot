@@ -1,6 +1,6 @@
 /**
  * callTracker.js
- * Отслеживает участников звонка: кто зашёл, когда, и время микрофона.
+ * Отслеживает участников звонка: кто зашёл, когда, и была ли голосовая активность.
  */
 
 class CallTracker {
@@ -12,11 +12,8 @@ class CallTracker {
     this.active = false;
     this.callStartTime = null;
     this.callEndTime = null;
-    // Все участники группы (получаем при старте звонка)
-    // userId → { name, username }
-    this.groupMembers = new Map();
-    // userId → { name, username, joinTime, leaveTime, micOnAt, totalMicMs }
-    this.participants = new Map();
+    this.groupMembers = new Map(); // userId → { name, username }
+    this.participants = new Map(); // userId → { name, username, joinTime, leaveTime, lastActiveDate }
   }
 
   onCallStart(groupMembers = []) {
@@ -29,43 +26,35 @@ class CallTracker {
     console.log(`[CallTracker] Видеочат начался, участников в группе: ${this.groupMembers.size}`);
   }
 
-  onParticipantUpdate({ userId, firstName, lastName, username, muted, left }) {
+  onParticipantUpdate({ userId, firstName, lastName, username, left, activeDate }) {
     if (!this.active) return;
 
     const name = [firstName, lastName].filter(Boolean).join(' ') || username || `User${userId}`;
     const now = Date.now();
 
     if (!this.participants.has(userId)) {
-      // Участник только что зашёл в звонок
       this.participants.set(userId, {
         name,
         username: username || null,
         joinTime: now,
         leaveTime: null,
-        micOnAt: muted ? null : now,
-        totalMicMs: 0,
+        lastActiveDate: activeDate || null,
       });
-      console.log(`[CallTracker] Зашёл: ${name} (muted=${muted})`);
+      console.log(`[CallTracker] Зашёл: ${name}`);
       return;
     }
 
     const record = this.participants.get(userId);
     if (name !== `User${userId}`) record.name = name;
 
-    if (left) {
-      this._closeMic(record, now);
-      if (!record.leaveTime) record.leaveTime = now;
-      console.log(`[CallTracker] Вышел: ${name}`);
-      return;
+    // Обновляем время последней активности если оно свежее
+    if (activeDate && (!record.lastActiveDate || activeDate > record.lastActiveDate)) {
+      record.lastActiveDate = activeDate;
     }
 
-    // Изменение микрофона
-    if (!muted && record.micOnAt === null) {
-      record.micOnAt = now;
-      console.log(`[CallTracker] Микрофон ON: ${name}`);
-    } else if (muted && record.micOnAt !== null) {
-      this._closeMic(record, now);
-      console.log(`[CallTracker] Микрофон OFF: ${name}`);
+    if (left) {
+      if (!record.leaveTime) record.leaveTime = now;
+      console.log(`[CallTracker] Вышел: ${name}`);
     }
   }
 
@@ -78,7 +67,6 @@ class CallTracker {
 
     for (const record of this.participants.values()) {
       if (!record.leaveTime) record.leaveTime = now;
-      this._closeMic(record, now);
     }
 
     console.log('[CallTracker] Видеочат завершён');
@@ -94,11 +82,11 @@ class CallTracker {
         username: record.username,
         joinTime: record.joinTime,
         leaveTime: record.leaveTime,
-        totalMicMs: record.totalMicMs,
+        // spoke = true если activeDate пришёл во время звонка
+        spoke: record.lastActiveDate !== null && record.lastActiveDate >= this.callStartTime,
       });
     }
 
-    // Кто не пришёл — все из группы, кого нет среди участников звонка
     const presentIds = new Set(participants.map(p => p.userId));
     const absent = [];
     for (const [userId, member] of this.groupMembers.entries()) {
@@ -117,13 +105,6 @@ class CallTracker {
 
   isActive() {
     return this.active;
-  }
-
-  _closeMic(record, now) {
-    if (record.micOnAt !== null) {
-      record.totalMicMs += now - record.micOnAt;
-      record.micOnAt = null;
-    }
   }
 }
 

@@ -153,8 +153,8 @@ async function handleUpdate(update, groupChatId, onReportReady) {
         firstName,
         lastName,
         username,
-        muted: p.muted ?? true,
         left: p.left ?? false,
+        activeDate: p.activeDate ? Number(p.activeDate) * 1000 : null,
       });
     }
   }
