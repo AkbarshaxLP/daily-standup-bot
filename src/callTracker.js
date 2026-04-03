@@ -40,13 +40,19 @@ class CallTracker {
         leaveTime: null,
         micOnAt: muted ? null : now,
         totalMicMs: 0,
+        spoke: !muted || (activeDate > 0 && activeDate >= this.callStartTime),
       });
-      console.log(`[CallTracker] Зашёл: ${name} (muted=${muted})`);
+      console.log(`[CallTracker] Зашёл: ${name} (muted=${muted} activeDate=${activeDate})`);
       return;
     }
 
     const record = this.participants.get(userId);
     if (name !== `User${userId}`) record.name = name;
+
+    // activeDate — Telegram сам обновляет когда участник говорит
+    if (activeDate > 0 && activeDate >= this.callStartTime) {
+      record.spoke = true;
+    }
 
     if (left) {
       this._closeMic(record, now);
@@ -57,6 +63,7 @@ class CallTracker {
 
     if (!muted && record.micOnAt === null) {
       record.micOnAt = now;
+      record.spoke = true;
       console.log(`[CallTracker] Микрофон ON: ${name}`);
     } else if (muted && record.micOnAt !== null) {
       this._closeMic(record, now);
@@ -89,7 +96,7 @@ class CallTracker {
         username: record.username,
         joinTime: record.joinTime,
         leaveTime: record.leaveTime,
-        totalMicMs: record.totalMicMs,
+        spoke: record.spoke || record.totalMicMs > 0,
       });
     }
 

@@ -45,9 +45,7 @@ function generateReport(snapshot) {
   } else {
     for (const p of sorted) {
       const nameStr = `[${escapeMarkdown(p.name)}](tg://user?id=${p.userId})`;
-      const micStr = p.totalMicMs > 0
-        ? `🎙 ${formatDuration(p.totalMicMs)}`
-        : '🔇 не говорил';
+      const micStr = p.spoke ? '🎙 говорил' : '🔇 не говорил';
       lines.push(`  • ${nameStr} — ${micStr}`);
     }
   }

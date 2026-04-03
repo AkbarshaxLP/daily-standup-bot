@@ -149,6 +149,8 @@ async function handleUpdate(update, groupChatId, onReportReady) {
 
       if (isIgnored(userId)) continue;
 
+      const activeDate = p.activeDate ? Number(p.activeDate) * 1000 : 0;
+      console.log(`[UserClient] participant userId=${userId} muted=${p.muted} left=${p.left} activeDate=${activeDate}`);
       callTracker.onParticipantUpdate({
         userId,
         firstName,
@@ -156,6 +158,7 @@ async function handleUpdate(update, groupChatId, onReportReady) {
         username,
         muted: p.muted ?? true,
         left: p.left ?? false,
+        activeDate,
       });
     }
   }
