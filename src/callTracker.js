@@ -26,7 +26,7 @@ class CallTracker {
     console.log(`[CallTracker] Видеочат начался, участников в группе: ${this.groupMembers.size}`);
   }
 
-  onParticipantUpdate({ userId, firstName, lastName, username, muted, left }) {
+  onParticipantUpdate({ userId, firstName, lastName, username, muted, left, activeDate = 0 }) {
     if (!this.active) return;
 
     const name = [firstName, lastName].filter(Boolean).join(' ') || username || `User${userId}`;
