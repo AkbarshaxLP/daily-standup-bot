@@ -114,6 +114,7 @@ async function handleUpdate(update, groupChatId, onReportReady) {
     if (!call) return;
 
     if (call.className === 'GroupCall' && !call.finished) {
+      if (callTracker.isActive()) return; // уже отслеживаем этот звонок
       const members = await fetchGroupMembers();
       callTracker.onCallStart(members);
     } else if (call.className === 'GroupCallDiscarded' || call.finished) {

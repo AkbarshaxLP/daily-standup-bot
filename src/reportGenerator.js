@@ -9,6 +9,15 @@ function formatTime(ts) {
   });
 }
 
+function formatDuration(ms) {
+  if (!ms || ms <= 0) return '0 сек';
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  if (min === 0) return `${sec} сек`;
+  if (sec === 0) return `${min} мин`;
+  return `${min} мин ${sec} сек`;
+}
 
 function generateReport(snapshot) {
   const { callStartTime, callEndTime, participants, absent = [] } = snapshot;
