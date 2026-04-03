@@ -12,8 +12,8 @@ class CallTracker {
     this.active = false;
     this.callStartTime = null;
     this.callEndTime = null;
-    this.groupMembers = new Map(); // userId → { name, username }
-    this.participants = new Map(); // userId → { name, username, joinTime, leaveTime, micOnAt, totalMicMs }
+    this.groupMembers = new Map();
+    this.participants = new Map();
   }
 
   onCallStart(groupMembers = []) {
@@ -26,7 +26,7 @@ class CallTracker {
     console.log(`[CallTracker] Видеочат начался, участников в группе: ${this.groupMembers.size}`);
   }
 
-  onParticipantUpdate({ userId, firstName, lastName, username, muted, left, activeDate = 0 }) {
+  onParticipantUpdate({ userId, firstName, lastName, username, muted, left }) {
     if (!this.active) return;
 
     const name = [firstName, lastName].filter(Boolean).join(' ') || username || `User${userId}`;
@@ -40,19 +40,13 @@ class CallTracker {
         leaveTime: null,
         micOnAt: muted ? null : now,
         totalMicMs: 0,
-        spoke: !muted || (activeDate > 0 && activeDate >= this.callStartTime),
       });
-      console.log(`[CallTracker] Зашёл: ${name} (muted=${muted} activeDate=${activeDate})`);
+      console.log(`[CallTracker] Зашёл: ${name} (muted=${muted})`);
       return;
     }
 
     const record = this.participants.get(userId);
     if (name !== `User${userId}`) record.name = name;
-
-    // activeDate — Telegram сам обновляет когда участник говорит
-    if (activeDate > 0 && activeDate >= this.callStartTime) {
-      record.spoke = true;
-    }
 
     if (left) {
       this._closeMic(record, now);
@@ -63,7 +57,6 @@ class CallTracker {
 
     if (!muted && record.micOnAt === null) {
       record.micOnAt = now;
-      record.spoke = true;
       console.log(`[CallTracker] Микрофон ON: ${name}`);
     } else if (muted && record.micOnAt !== null) {
       this._closeMic(record, now);
@@ -96,7 +89,7 @@ class CallTracker {
         username: record.username,
         joinTime: record.joinTime,
         leaveTime: record.leaveTime,
-        spoke: record.spoke || record.totalMicMs > 0,
+        totalMicMs: record.totalMicMs,
       });
     }
 
