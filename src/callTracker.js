@@ -1,6 +1,6 @@
 /**
  * callTracker.js
- * Отслеживает участников звонка: кто зашёл, когда, и время микрофона.
+ * Отслеживает участников звонка: кто зашёл и когда.
  */
 
 class CallTracker {
@@ -26,7 +26,7 @@ class CallTracker {
     console.log(`[CallTracker] Видеочат начался, участников в группе: ${this.groupMembers.size}`);
   }
 
-  onParticipantUpdate({ userId, firstName, lastName, username, muted, left }) {
+  onParticipantUpdate({ userId, firstName, lastName, username, left }) {
     if (!this.active) return;
 
     const name = [firstName, lastName].filter(Boolean).join(' ') || username || `User${userId}`;
@@ -38,10 +38,8 @@ class CallTracker {
         username: username || null,
         joinTime: now,
         leaveTime: null,
-        micOnAt: muted ? null : now,
-        totalMicMs: 0,
       });
-      console.log(`[CallTracker] Зашёл: ${name} (muted=${muted})`);
+      console.log(`[CallTracker] Зашёл: ${name}`);
       return;
     }
 
@@ -49,18 +47,8 @@ class CallTracker {
     if (name !== `User${userId}`) record.name = name;
 
     if (left) {
-      this._closeMic(record, now);
       if (!record.leaveTime) record.leaveTime = now;
       console.log(`[CallTracker] Вышел: ${name}`);
-      return;
-    }
-
-    if (!muted && record.micOnAt === null) {
-      record.micOnAt = now;
-      console.log(`[CallTracker] Микрофон ON: ${name}`);
-    } else if (muted && record.micOnAt !== null) {
-      this._closeMic(record, now);
-      console.log(`[CallTracker] Микрофон OFF: ${name}`);
     }
   }
 
@@ -73,7 +61,6 @@ class CallTracker {
 
     for (const record of this.participants.values()) {
       if (!record.leaveTime) record.leaveTime = now;
-      this._closeMic(record, now);
     }
 
     console.log('[CallTracker] Видеочат завершён');
@@ -89,7 +76,6 @@ class CallTracker {
         username: record.username,
         joinTime: record.joinTime,
         leaveTime: record.leaveTime,
-        totalMicMs: record.totalMicMs,
       });
     }
 
@@ -113,12 +99,6 @@ class CallTracker {
     return this.active;
   }
 
-  _closeMic(record, now) {
-    if (record.micOnAt !== null) {
-      record.totalMicMs += now - record.micOnAt;
-      record.micOnAt = null;
-    }
-  }
 }
 
 module.exports = new CallTracker();

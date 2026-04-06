@@ -135,8 +135,8 @@ function createBot() {
       callStartTime: now - 22 * 60 * 1000,
       callEndTime: now,
       participants: [
-        { userId: 111, name: 'Иван Иванов', username: 'ivan_dev', joinTime: now - 22 * 60 * 1000, leaveTime: now, totalMicMs: 4 * 60 * 1000 },
-        { userId: 222, name: 'Мария Петрова', username: null, joinTime: now - 18 * 60 * 1000, leaveTime: now, totalMicMs: 0 },
+        { userId: 111, name: 'Иван Иванов', username: 'ivan_dev', joinTime: now - 22 * 60 * 1000, leaveTime: now },
+        { userId: 222, name: 'Мария Петрова', username: null, joinTime: now - 18 * 60 * 1000, leaveTime: now },
       ],
       absent: [
         { userId: 333, name: 'Пётр Козлов', username: 'petr_dev' },
